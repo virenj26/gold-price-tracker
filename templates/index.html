@@ -1,22 +1,103 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Gold & Silver Price Tracker</title>
+  <style>
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f1216;color:#fff}
+    .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
+    h1{margin:0 0 18px 0}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .card{background:#1b2128;border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .card h2{margin:0 0 10px 0;text-align:center;color:#ffcc00}
+    table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:10px}
+    thead th{background:#2a323c;color:#ffcc00;padding:10px;font-weight:700}
+    tbody td{padding:10px;border-top:1px solid rgba(255,255,255,.08);text-align:center}
+    .muted{opacity:.7}
+    .pos{color:#40d97b;font-weight:700}
+    .neg{color:#ff4d4d;font-weight:700}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin:8px 0 18px}
+    .pill{background:#2a323c;padding:8px 12px;border-radius:999px;font-size:13px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-  <h2>Gold & Silver Price Tracker</h2>
-  <div id="data">Loading...</div>
+  <div class="wrap">
+    <div class="topbar">
+      <h1>Gold & Silver Price Tracker</h1>
+      <div class="pill">Last updated: <span id="updated" class="muted">—</span></div>
+    </div>
 
-  <script>
-    fetch("/api/prices")
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("data").innerHTML = `
-          <p><b>Gold 999:</b> ₹${data.gold.sell999}</p>
-          <p><b>Gold 995:</b> ₹${data.gold.sell995}</p>
-          <p><b>Silver 999:</b> ₹${data.silver.sell999}</p>
-        `;
-      });
-  </script>
+    <div id="status" class="muted">Loading…</div>
+
+    <div class="grid" style="margin-top:14px">
+      <div class="card">
+        <h2>Sell 995 Table</h2>
+        <table>
+          <thead>
+            <tr><th>Site</th><th>Cost</th><th>Sell995</th><th>Diff995</th></tr>
+          </thead>
+          <tbody id="tbody995"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Sell 999 Table</h2>
+        <table>
+          <thead>
+            <tr><th>Site</th><th>Cost</th><th>Sell999</th><th>Diff999</th></tr>
+          </thead>
+          <tbody id="tbody999"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const fmt = (v) => (v === null || v === undefined) ? "-" : String(v);
+  const diffClass = (v) => (v === null || v === undefined) ? "" : (v >= 0 ? "pos" : "neg");
+
+  function rowHTML(r, mode){
+    const sellKey = (mode === 995) ? "sell" : "sell";
+    const diff = r.diff;
+    return `
+      <tr>
+        <td>${r.site}</td>
+        <td>${fmt(r.cost)}</td>
+        <td>${fmt(r[sellKey])}</td>
+        <td class="${diffClass(diff)}">${fmt(diff)}</td>
+      </tr>
+    `;
+  }
+
+  async function load(){
+    try{
+      const res = await fetch("/api/prices", {cache:"no-store"});
+      const data = await res.json();
+
+      document.getElementById("status").textContent = "";
+
+      // updated time
+      const d = new Date((data.updatedAt || Math.floor(Date.now()/1000)) * 1000);
+      document.getElementById("updated").textContent = d.toLocaleString();
+
+      // render 995
+      document.getElementById("tbody995").innerHTML =
+        (data.sell995 || []).map(r => rowHTML(r, 995)).join("");
+
+      // render 999
+      document.getElementById("tbody999").innerHTML =
+        (data.sell999 || []).map(r => rowHTML(r, 999)).join("");
+
+    }catch(e){
+      document.getElementById("status").textContent = "Error loading data. Check /api/prices";
+      console.error(e);
+    }
+  }
+
+  load();
+  setInterval(load, 5000); // refresh every 5s
+</script>
 </body>
 </html>
