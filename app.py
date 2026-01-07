@@ -1,3 +1,6 @@
+import requests
+import time
+import xml.etree.ElementTree as ET
 from flask import Flask, jsonify, render_template
 import time
 import requests
