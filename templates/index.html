@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Gold & Silver Price Tracker</title>
+</head>
+<body>
+  <h2>Gold & Silver Price Tracker</h2>
+  <div id="data">Loading...</div>
+
+  <script>
+    fetch("/api/prices")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("data").innerHTML = `
+          <p><b>Gold 999:</b> ₹${data.gold.sell999}</p>
+          <p><b>Gold 995:</b> ₹${data.gold.sell995}</p>
+          <p><b>Silver 999:</b> ₹${data.silver.sell999}</p>
+        `;
+      });
+  </script>
+</body>
+</html>
