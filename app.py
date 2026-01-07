@@ -6,69 +6,65 @@ import xml.etree.ElementTree as ET
 app = Flask(__name__)
 
 # ======================
-# 1) ARIHANT LIVE FEED
+# ARIHANT LIVE FEED
 # ======================
-ARIHANT_URL = (
-    "https://bcast.arihantspot.com:7768/"
-    "VOTSBroadcastStreaming/Services/xml/"
-    "GetLiveRateByTemplateID/arihant"
-)
+ARIHANT_URL = "https://bcast.arihantspot.com:7768/VOTSBroadcastStreaming/Services/xml/GetLiveRateByTemplateID/arihant"
 
-_ARIHANT_CACHE = {"ts": 0, "data": None}
+_CACHE = {"ts": 0, "mapped": None, "raw": None}
 
-def fetch_arihant_rates():
+def fetch_arihant_raw_rates():
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Referer": "https://www.arihantspot.in/",
         "Accept": "text/plain",
     }
-
     r = requests.get(ARIHANT_URL, headers=headers, timeout=10)
     r.raise_for_status()
 
-    # XML parse
     root = ET.fromstring(r.text)
 
     rates = {}
     last_symbol = None
 
     for node in root.iter():
-        tag = (node.tag or "").lower().strip()
+        tag = (node.tag or "").lower()
 
-        # capture symbols
         if tag.endswith("symbol"):
             last_symbol = (node.text or "").strip()
 
-        # capture rates for last symbol
-        if tag.endswith("rate") and last_symbol:
+        elif tag.endswith("rate") and last_symbol:
             try:
                 rates[last_symbol] = float((node.text or "").strip())
             except:
                 pass
 
-    return rates  # returns: {"GOLD999": 136433, "GOLD995": 135833, ...}
+    return rates
 
 def get_arihant_cached():
-    # cache for 10 seconds
-    if (time.time() - _ARIHANT_CACHE["ts"]) > 10 or _ARIHANT_CACHE["data"] is None:
-        _ARIHANT_CACHE["data"] = fetch_arihant_rates()
-        _ARIHANT_CACHE["ts"] = time.time()
-    return _ARIHANT_CACHE["data"]
+    # cache for 5 seconds
+    if time.time() - _CACHE["ts"] > 5 or _CACHE["mapped"] is None:
+        raw = fetch_arihant_raw_rates()
 
-# ✅ STEP 3 DEBUG ROUTE (to see symbols)
-@app.route("/debug/arihant")
-def debug_arihant():
-    data = get_arihant_cached()
-    return jsonify(data)
+        # Map what we need (adjust keys if your XML uses different names)
+        mapped = {
+            "gold_999": raw.get("GOLD999"),
+            "gold_995": raw.get("GOLD995"),
+            "silver_999": raw.get("SILVER999"),
+        }
 
+        _CACHE["raw"] = raw
+        _CACHE["mapped"] = mapped
+        _CACHE["ts"] = time.time()
+
+    return _CACHE["mapped"], _CACHE["raw"]
 
 # ======================
-# 2) YOUR MULTI-SITE TABLE SETUP
+# YOUR MULTI-SITE TABLE SETUP
 # ======================
 SITES = ["Arihant", "Safari", "Mandev", "Auric", "Raksha", "RSBL", "dP GOLD"]
 
 BASE_COST_BY_SITE = {
-    "Arihant": None,     # ✅ LIVE from Arihant API
+    "Arihant": None,     # LIVE
     "Safari": 137933,
     "Mandev": 137933,
     "Auric": 137933,
@@ -98,20 +94,17 @@ SELL_999_OFFSET = {
 }
 
 def build_tables():
+    mapped, raw = get_arihant_cached()
+
     sell995 = []
     sell999 = []
 
     for site in SITES:
         cost = BASE_COST_BY_SITE.get(site)
 
-        # ✅ LIVE COST FROM ARIHANT
+        # ✅ Arihant LIVE base cost (using GOLD999 as your screenshot base)
         if site == "Arihant":
-            try:
-                ar = get_arihant_cached()
-                # IMPORTANT: use the correct symbol that exists in debug output
-                cost = ar.get("GOLD999")  # live base cost
-            except:
-                cost = None
+            cost = mapped.get("gold_999")
 
         # 995 table
         off995 = SELL_995_OFFSET.get(site)
@@ -147,13 +140,13 @@ def build_tables():
 
     return {
         "updatedAt": int(time.time()),
+        "arihantraw_keys_count": len(raw or {}),
         "sell995": sell995,
         "sell999": sell999
     }
 
-
 # ======================
-# 3) ROUTES
+# ROUTES
 # ======================
 @app.route("/")
 def home():
@@ -162,6 +155,12 @@ def home():
 @app.route("/api/prices")
 def api_prices():
     return jsonify(build_tables())
+
+# ✅ DEBUG ROUTE (this is what you opened)
+@app.route("/debug/arihant")
+def debug_arihant():
+    mapped, raw = get_arihant_cached()
+    return jsonify({"mapped": mapped, "raw_sample": dict(list((raw or {}).items())[:30])})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
