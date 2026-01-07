@@ -10,61 +10,85 @@ app = Flask(__name__)
 # ======================
 ARIHANT_URL = "https://bcast.arihantspot.com:7768/VOTSBroadcastStreaming/Services/xml/GetLiveRateByTemplateID/arihant"
 
-_CACHE = {"ts": 0, "mapped": None, "raw": None}
+_CACHE = {"ts": 0, "data": None, "err": None}
 
-def fetch_arihant_raw_rates():
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Referer": "https://www.arihantspot.in/",
-        "Accept": "text/plain",
-    }
-    r = requests.get(ARIHANT_URL, headers=headers, timeout=10)
-    r.raise_for_status()
+def fetch_arihant_rates():
+    """
+    Returns:
+      {
+        "gold_999": float|None,
+        "gold_995": float|None,
+        "silver_999": float|None,
+        "raw": dict,
+        "error": str|None
+      }
+    NEVER raises exception (so API never becomes 500).
+    """
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://www.arihantspot.in/",
+            "Accept": "*/*",
+        }
 
-    root = ET.fromstring(r.text)
+        r = requests.get(ARIHANT_URL, headers=headers, timeout=10)
+        r.raise_for_status()
 
-    rates = {}
-    last_symbol = None
+        text = r.text.strip()
+        root = ET.fromstring(text)
 
-    for node in root.iter():
-        tag = (node.tag or "").lower()
+        raw = {}
+        last_symbol = None
 
-        if tag.endswith("symbol"):
-            last_symbol = (node.text or "").strip()
+        for node in root.iter():
+            tag = (node.tag or "").lower()
 
-        elif tag.endswith("rate") and last_symbol:
-            try:
-                rates[last_symbol] = float((node.text or "").strip())
-            except:
-                pass
+            if tag.endswith("symbol"):
+                last_symbol = (node.text or "").strip()
 
-    return rates
+            if tag.endswith("rate") and last_symbol:
+                val = (node.text or "").strip()
+                try:
+                    raw[last_symbol] = float(val)
+                except:
+                    pass
 
-def get_arihant_cached():
-    # cache for 5 seconds
-    if time.time() - _CACHE["ts"] > 5 or _CACHE["mapped"] is None:
-        raw = fetch_arihant_raw_rates()
-
-        # Map what we need (adjust keys if your XML uses different names)
-        mapped = {
+        return {
             "gold_999": raw.get("GOLD999"),
             "gold_995": raw.get("GOLD995"),
             "silver_999": raw.get("SILVER999"),
+            "raw": raw,
+            "error": None
         }
 
-        _CACHE["raw"] = raw
-        _CACHE["mapped"] = mapped
-        _CACHE["ts"] = time.time()
+    except Exception as e:
+        return {
+            "gold_999": None,
+            "gold_995": None,
+            "silver_999": None,
+            "raw": {},
+            "error": str(e)
+        }
 
-    return _CACHE["mapped"], _CACHE["raw"]
+
+def get_arihant_cached():
+    # refresh every 5 seconds
+    now = time.time()
+    if _CACHE["data"] is None or (now - _CACHE["ts"] > 5):
+        data = fetch_arihant_rates()
+        _CACHE["data"] = data
+        _CACHE["err"] = data.get("error")
+        _CACHE["ts"] = now
+    return _CACHE["data"]
+
 
 # ======================
-# YOUR MULTI-SITE TABLE SETUP
+# YOUR TABLE SETUP
 # ======================
 SITES = ["Arihant", "Safari", "Mandev", "Auric", "Raksha", "RSBL", "dP GOLD"]
 
 BASE_COST_BY_SITE = {
-    "Arihant": None,     # LIVE
+    "Arihant": None,      # LIVE
     "Safari": 137933,
     "Mandev": 137933,
     "Auric": 137933,
@@ -93,8 +117,20 @@ SELL_999_OFFSET = {
     "dP GOLD": -1455,
 }
 
+
+def safe_int(x):
+    try:
+        if x is None:
+            return None
+        return int(round(float(x)))
+    except:
+        return None
+
+
 def build_tables():
-    mapped, raw = get_arihant_cached()
+    # NEVER crash
+    ar = get_arihant_cached()
+    ari_cost = ar.get("gold_999")  # base = GOLD999
 
     sell995 = []
     sell999 = []
@@ -102,48 +138,53 @@ def build_tables():
     for site in SITES:
         cost = BASE_COST_BY_SITE.get(site)
 
-        # ✅ Arihant LIVE base cost (using GOLD999 as your screenshot base)
         if site == "Arihant":
-            cost = mapped.get("gold_999")
+            cost = ari_cost
 
-        # 995 table
+        # 995
         off995 = SELL_995_OFFSET.get(site)
         if cost is None or off995 is None:
-            sell = None
-            diff = None
+            s995 = None
+            d995 = None
         else:
-            sell = cost + off995
-            diff = sell - cost
+            s995 = float(cost) + float(off995)
+            d995 = s995 - float(cost)
 
         sell995.append({
             "site": site,
-            "cost": int(cost) if cost is not None else None,
-            "sell": int(sell) if sell is not None else None,
-            "diff": int(diff) if diff is not None else None,
+            "cost": safe_int(cost),
+            "sell": safe_int(s995),
+            "diff": safe_int(d995),
         })
 
-        # 999 table
+        # 999
         off999 = SELL_999_OFFSET.get(site)
         if cost is None or off999 is None:
-            sell2 = None
-            diff2 = None
+            s999 = None
+            d999 = None
         else:
-            sell2 = cost + off999
-            diff2 = sell2 - cost
+            s999 = float(cost) + float(off999)
+            d999 = s999 - float(cost)
 
         sell999.append({
             "site": site,
-            "cost": int(cost) if cost is not None else None,
-            "sell": int(sell2) if sell2 is not None else None,
-            "diff": int(diff2) if diff2 is not None else None,
+            "cost": safe_int(cost),
+            "sell": safe_int(s999),
+            "diff": safe_int(d999),
         })
 
     return {
         "updatedAt": int(time.time()),
-        "arihantraw_keys_count": len(raw or {}),
+        "arihant": {
+            "gold_999": ar.get("gold_999"),
+            "gold_995": ar.get("gold_995"),
+            "silver_999": ar.get("silver_999"),
+            "error": ar.get("error")
+        },
         "sell995": sell995,
         "sell999": sell999
     }
+
 
 # ======================
 # ROUTES
@@ -156,11 +197,11 @@ def home():
 def api_prices():
     return jsonify(build_tables())
 
-# ✅ DEBUG ROUTE (this is what you opened)
+# DEBUG ROUTE (VERY IMPORTANT)
 @app.route("/debug/arihant")
 def debug_arihant():
-    mapped, raw = get_arihant_cached()
-    return jsonify({"mapped": mapped, "raw_sample": dict(list((raw or {}).items())[:30])})
+    return jsonify(get_arihant_cached())
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
