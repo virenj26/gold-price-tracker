@@ -1,6 +1,3 @@
-import requests
-import time
-import xml.etree.ElementTree as ET
 from flask import Flask, jsonify, render_template
 import time
 import requests
@@ -20,6 +17,35 @@ ARIHANT_URL = (
 _ARIHANT_CACHE = {"ts": 0, "data": None}
 
 def fetch_arihant_rates():
+    url = "https://bcast.arihantspot.com:7768/VOTSBroadcastStreaming/Services/xml/GetLiveRateByTemplateID/arihant"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Referer": "https://www.arihantspot.in/",
+        "Accept": "text/plain"
+    }
+
+    r = requests.get(url, headers=headers, timeout=10)
+    r.raise_for_status()
+
+    root = ET.fromstring(r.text)
+
+    rates = {}
+    last_symbol = None
+
+    for node in root.iter():
+        tag = node.tag.lower()
+
+        if tag.endswith("symbol"):
+            last_symbol = node.text.strip()
+
+        if tag.endswith("rate") and last_symbol:
+            try:
+                rates[last_symbol] = float(node.text)
+            except:
+                pass
+
+    return rates
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Referer": "https://www.arihantspot.in/",
