@@ -17,72 +17,49 @@ ARIHANT_URL = (
 _ARIHANT_CACHE = {"ts": 0, "data": None}
 
 def fetch_arihant_rates():
-    url = "https://bcast.arihantspot.com:7768/VOTSBroadcastStreaming/Services/xml/GetLiveRateByTemplateID/arihant"
-
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Referer": "https://www.arihantspot.in/",
-        "Accept": "text/plain"
-    }
-
-    r = requests.get(url, headers=headers, timeout=10)
-    r.raise_for_status()
-
-    root = ET.fromstring(r.text)
-
-    rates = {}
-    last_symbol = None
-
-    for node in root.iter():
-        tag = node.tag.lower()
-
-        if tag.endswith("symbol"):
-            last_symbol = node.text.strip()
-
-        if tag.endswith("rate") and last_symbol:
-            try:
-                rates[last_symbol] = float(node.text)
-            except:
-                pass
-
-    return rates
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Referer": "https://www.arihantspot.in/",
-        "Accept": "*/*",
+        "Accept": "text/plain",
     }
 
     r = requests.get(ARIHANT_URL, headers=headers, timeout=10)
     r.raise_for_status()
 
+    # XML parse
     root = ET.fromstring(r.text)
+
     rates = {}
-
     last_symbol = None
-    for node in root.iter():
-        tag = (node.tag or "").lower()
 
+    for node in root.iter():
+        tag = (node.tag or "").lower().strip()
+
+        # capture symbols
         if tag.endswith("symbol"):
             last_symbol = (node.text or "").strip()
 
+        # capture rates for last symbol
         if tag.endswith("rate") and last_symbol:
             try:
                 rates[last_symbol] = float((node.text or "").strip())
             except:
                 pass
 
-    return {
-        "gold_999": rates.get("GOLD999"),
-        "gold_995": rates.get("GOLD995"),
-        "silver_999": rates.get("SILVER999"),
-    }
+    return rates  # returns: {"GOLD999": 136433, "GOLD995": 135833, ...}
 
 def get_arihant_cached():
-    # cache 10 seconds
-    if time.time() - _ARIHANT_CACHE["ts"] > 10:
+    # cache for 10 seconds
+    if (time.time() - _ARIHANT_CACHE["ts"]) > 10 or _ARIHANT_CACHE["data"] is None:
         _ARIHANT_CACHE["data"] = fetch_arihant_rates()
         _ARIHANT_CACHE["ts"] = time.time()
     return _ARIHANT_CACHE["data"]
+
+# ✅ STEP 3 DEBUG ROUTE (to see symbols)
+@app.route("/debug/arihant")
+def debug_arihant():
+    data = get_arihant_cached()
+    return jsonify(data)
 
 
 # ======================
@@ -90,7 +67,6 @@ def get_arihant_cached():
 # ======================
 SITES = ["Arihant", "Safari", "Mandev", "Auric", "Raksha", "RSBL", "dP GOLD"]
 
-# Base cost (Arihant will be LIVE; others dummy for now)
 BASE_COST_BY_SITE = {
     "Arihant": None,     # ✅ LIVE from Arihant API
     "Safari": 137933,
@@ -101,7 +77,6 @@ BASE_COST_BY_SITE = {
     "dP GOLD": 137933,
 }
 
-# Offsets (same as your screenshot logic)
 SELL_995_OFFSET = {
     "Arihant": -2100,
     "Safari": -2100,
@@ -129,11 +104,12 @@ def build_tables():
     for site in SITES:
         cost = BASE_COST_BY_SITE.get(site)
 
-        # ✅ STEP 3: Inject Arihant LIVE rate here
+        # ✅ LIVE COST FROM ARIHANT
         if site == "Arihant":
             try:
                 ar = get_arihant_cached()
-                cost = ar["gold_999"]  # using GOLD999 as base cost
+                # IMPORTANT: use the correct symbol that exists in debug output
+                cost = ar.get("GOLD999")  # live base cost
             except:
                 cost = None
 
@@ -186,7 +162,6 @@ def home():
 @app.route("/api/prices")
 def api_prices():
     return jsonify(build_tables())
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
