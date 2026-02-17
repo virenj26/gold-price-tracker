@@ -3,35 +3,88 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Gold & Silver Price Tracker</title>
+  <title>Gold Price Tracker</title>
   <style>
-    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f1216;color:#fff}
-    .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
-    .topbar{display:flex;justify-content:space-between;align-items:center;margin:8px 0 18px}
-    h1{margin:0}
-    .pill{background:#2a323c;padding:8px 12px;border-radius:999px;font-size:13px}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-    .card{background:#1b2128;border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .card h2{margin:0 0 10px 0;text-align:center;color:#ffcc00}
-    table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:10px}
-    thead th{background:#2a323c;color:#ffcc00;padding:10px;font-weight:700}
-    tbody td{padding:10px;border-top:1px solid rgba(255,255,255,.08);text-align:center}
-    .muted{opacity:.7}
-    .pos{color:#40d97b;font-weight:700}
-    .neg{color:#ff4d4d;font-weight:700}
-    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    :root{
+      --bg:#0f1216;
+      --card:#1b2128;
+      --card2:#171c22;
+      --line:rgba(255,255,255,.08);
+      --title:#ffcc00;
+      --text:#ffffff;
+      --muted:rgba(255,255,255,.75);
+      --neg:#ff4d4d;
+      --pos:#40d97b;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,Helvetica,sans-serif;
+      background: radial-gradient(1200px 700px at 50% 0%, #1a2027 0%, var(--bg) 55%, #0b0d10 100%);
+      color:var(--text);
+      min-height:100vh;
+    }
+    .wrap{max-width:1200px;margin:30px auto;padding:0 18px}
+    .topbar{
+      display:flex;justify-content:space-between;align-items:center;
+      margin:8px 0 22px;
+    }
+    h1{margin:0;font-size:34px;letter-spacing:.3px}
+    .pill{
+      background:#2a323c;
+      padding:8px 14px;border-radius:999px;font-size:13px;
+      box-shadow:0 10px 25px rgba(0,0,0,.25);
+    }
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+    @media (max-width: 950px){ .grid{grid-template-columns:1fr} }
+
+    .card{
+      background: linear-gradient(180deg, var(--card) 0%, var(--card2) 100%);
+      border-radius:18px;
+      padding:18px 18px 14px;
+      box-shadow:0 18px 45px rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .card h2{
+      margin:4px 0 14px;
+      text-align:center;
+      color:var(--title);
+      font-size:24px;
+      font-weight:800;
+    }
+
+    table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px}
+    thead th{
+      background:#2a323c;
+      color:var(--title);
+      padding:12px 10px;
+      font-weight:800;
+      text-align:center;
+      font-size:14px;
+    }
+    tbody td{
+      padding:12px 10px;
+      border-top:1px solid var(--line);
+      text-align:center;
+      font-size:15px;
+    }
+    tbody tr:hover{background:rgba(255,255,255,.03)}
+    .muted{opacity:.75}
+    .pos{color:var(--pos);font-weight:800}
+    .neg{color:var(--neg);font-weight:800}
+    .status{margin:4px 0 0;color:var(--muted);font-size:14px}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="topbar">
-      <h1>Gold & Silver Price Tracker</h1>
+      <h1>Gold &amp; Silver Price Tracker</h1>
       <div class="pill">Last updated: <span id="updated" class="muted">—</span></div>
     </div>
 
-    <div id="status" class="muted">Loading…</div>
+    <div id="status" class="status">Loading…</div>
 
-    <div class="grid" style="margin-top:14px">
+    <div class="grid" style="margin-top:18px">
       <div class="card">
         <h2>Sell 995 Table</h2>
         <table>
@@ -86,7 +139,8 @@
         (data.sell999 || []).map(rowHTML).join("");
 
     }catch(e){
-      document.getElementById("status").textContent = "Error loading data. Open /api/prices to check.";
+      document.getElementById("status").textContent =
+        "Error loading data. Open /api/prices to check.";
       console.error(e);
     }
   }
