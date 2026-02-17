@@ -3,11 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Gold Price Tracker</title>
+  <title>Gold & Silver Price Tracker</title>
   <style>
     body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f1216;color:#fff}
     .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
-    h1{margin:0 0 18px 0}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin:8px 0 18px}
+    h1{margin:0}
+    .pill{background:#2a323c;padding:8px 12px;border-radius:999px;font-size:13px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
     .card{background:#1b2128;border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
     .card h2{margin:0 0 10px 0;text-align:center;color:#ffcc00}
@@ -17,15 +19,13 @@
     .muted{opacity:.7}
     .pos{color:#40d97b;font-weight:700}
     .neg{color:#ff4d4d;font-weight:700}
-    .topbar{display:flex;justify-content:space-between;align-items:center;margin:8px 0 18px}
-    .pill{background:#2a323c;padding:8px 12px;border-radius:999px;font-size:13px}
     @media (max-width:900px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="topbar">
-      <h1>Gold Price Tracker</h1>
+      <h1>Gold & Silver Price Tracker</h1>
       <div class="pill">Last updated: <span id="updated" class="muted">—</span></div>
     </div>
 
@@ -59,13 +59,12 @@
   const diffClass = (v) => (v === null || v === undefined) ? "" : (v >= 0 ? "pos" : "neg");
 
   function rowHTML(r){
-    const diff = r.diff;
     return `
       <tr>
         <td>${r.site ?? "-"}</td>
         <td>${fmt(r.cost)}</td>
         <td>${fmt(r.sell)}</td>
-        <td class="${diffClass(diff)}">${fmt(diff)}</td>
+        <td class="${diffClass(r.diff)}">${fmt(r.diff)}</td>
       </tr>
     `;
   }
