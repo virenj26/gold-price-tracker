@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Gold & Silver Price Tracker</title>
+  <title>Gold Price Tracker</title>
   <style>
     body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f1216;color:#fff}
     .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
@@ -25,7 +25,7 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <h1>Gold & Silver Price Tracker</h1>
+      <h1>Gold Price Tracker</h1>
       <div class="pill">Last updated: <span id="updated" class="muted">—</span></div>
     </div>
 
@@ -58,14 +58,13 @@
   const fmt = (v) => (v === null || v === undefined) ? "-" : String(v);
   const diffClass = (v) => (v === null || v === undefined) ? "" : (v >= 0 ? "pos" : "neg");
 
-  function rowHTML(r, mode){
-    const sellKey = (mode === 995) ? "sell" : "sell";
+  function rowHTML(r){
     const diff = r.diff;
     return `
       <tr>
-        <td>${r.site}</td>
+        <td>${r.site ?? "-"}</td>
         <td>${fmt(r.cost)}</td>
-        <td>${fmt(r[sellKey])}</td>
+        <td>${fmt(r.sell)}</td>
         <td class="${diffClass(diff)}">${fmt(diff)}</td>
       </tr>
     `;
@@ -78,26 +77,23 @@
 
       document.getElementById("status").textContent = "";
 
-      // updated time
       const d = new Date((data.updatedAt || Math.floor(Date.now()/1000)) * 1000);
       document.getElementById("updated").textContent = d.toLocaleString();
 
-      // render 995
       document.getElementById("tbody995").innerHTML =
-        (data.sell995 || []).map(r => rowHTML(r, 995)).join("");
+        (data.sell995 || []).map(rowHTML).join("");
 
-      // render 999
       document.getElementById("tbody999").innerHTML =
-        (data.sell999 || []).map(r => rowHTML(r, 999)).join("");
+        (data.sell999 || []).map(rowHTML).join("");
 
     }catch(e){
-      document.getElementById("status").textContent = "Error loading data. Check /api/prices";
+      document.getElementById("status").textContent = "Error loading data. Open /api/prices to check.";
       console.error(e);
     }
   }
 
   load();
-  setInterval(load, 5000); // refresh every 5s
+  setInterval(load, 5000);
 </script>
 </body>
 </html>
